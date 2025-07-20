@@ -1,0 +1,1411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COSMIC UI/UX | Space Mission Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600;700&family=Orbitron:wght@400;500;700&family=Space+Grotesk:wght@300;400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --cosmic-dark: #0a0e17;
+            --deep-space: #0d1424;
+            --nebula-purple: #5d3fd3;
+            --starlight-blue: #1e90ff;
+            --galaxy-pink: #cf4ec9;
+            --planet-orange: #ff7f50;
+            --comet-green: #00fa9a;
+            --text-light: #e6f1ff;
+            --text-dim: #a0aec0;
+            --accent-gold: #ffd700;
+        }
+        
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: linear-gradient(135deg, var(--cosmic-dark), var(--deep-space));
+            color: var(--text-light);
+            overflow-x: hidden;
+            min-height: 100vh;
+            position: relative;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 10% 20%, rgba(93, 63, 211, 0.1) 0%, transparent 20%),
+                radial-gradient(circle at 90% 70%, rgba(207, 78, 201, 0.1) 0%, transparent 20%),
+                radial-gradient(circle at 50% 30%, rgba(30, 144, 255, 0.1) 0%, transparent 30%);
+            z-index: -1;
+        }
+        
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+        
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle var(--duration, 5s) infinite var(--delay, 0s);
+        }
+        
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.2; }
+            50% { opacity: 1; }
+        }
+        
+        .header {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            padding: 1.2rem 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(10, 14, 23, 0.85);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            border-bottom: 1px solid rgba(93, 63, 211, 0.3);
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 1.8rem;
+            color: var(--text-light);
+            text-decoration: none;
+        }
+        
+        .logo-icon {
+            color: var(--nebula-purple);
+            font-size: 2.2rem;
+            animation: pulse 4s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+        }
+        
+        .nav-link {
+            position: relative;
+            font-family: 'Exo 2', sans-serif;
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: var(--text-dim);
+            text-decoration: none;
+            padding: 0.5rem 0;
+            transition: color 0.3s ease;
+        }
+        
+        .nav-link:hover {
+            color: var(--text-light);
+        }
+        
+        .nav-link.active {
+            color: var(--starlight-blue);
+        }
+        
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--starlight-blue);
+            transition: width 0.3s ease;
+        }
+        
+        .nav-link:hover::after,
+        .nav-link.active::after {
+            width: 100%;
+        }
+        
+        .page-container {
+            display: flex;
+            min-height: 100vh;
+            padding-top: 80px;
+        }
+        
+        .sidebar {
+            width: 280px;
+            padding: 2rem 1.5rem;
+            background: rgba(13, 20, 36, 0.7);
+            border-right: 1px solid rgba(93, 63, 211, 0.2);
+            position: fixed;
+            height: calc(100vh - 80px);
+            overflow-y: auto;
+        }
+        
+        .sidebar-section {
+            margin-bottom: 2.5rem;
+        }
+        
+        .sidebar-title {
+            font-family: 'Exo 2', sans-serif;
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: var(--starlight-blue);
+            margin-bottom: 1.2rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid rgba(93, 63, 211, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .sidebar-icon {
+            font-size: 1.3rem;
+        }
+        
+        .page-links {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+        
+        .page-link {
+            padding: 0.8rem 1.2rem;
+            border-radius: 8px;
+            background: rgba(30, 144, 255, 0.08);
+            color: var(--text-dim);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .page-link:hover {
+            background: rgba(93, 63, 211, 0.2);
+            color: var(--text-light);
+            transform: translateX(5px);
+        }
+        
+        .page-link.active {
+            background: linear-gradient(90deg, rgba(93, 63, 211, 0.3), transparent);
+            color: var(--text-light);
+            border-left: 3px solid var(--nebula-purple);
+        }
+        
+        .page-link-icon {
+            font-size: 1.2rem;
+        }
+        
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            padding: 2.5rem 3rem;
+        }
+        
+        .page {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .page.active {
+            display: block;
+        }
+        
+        .page-title {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 2.5rem;
+            color: var(--text-light);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .page-icon {
+            color: var(--nebula-purple);
+            font-size: 2.2rem;
+        }
+        
+        .page-subtitle {
+            font-family: 'Exo 2', sans-serif;
+            font-weight: 300;
+            font-size: 1.2rem;
+            color: var(--text-dim);
+            margin-bottom: 2.5rem;
+            max-width: 800px;
+            line-height: 1.7;
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-top: 2rem;
+        }
+        
+        .card {
+            background: rgba(13, 20, 36, 0.6);
+            border-radius: 16px;
+            padding: 1.8rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(93, 63, 211, 0.2);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(93, 63, 211, 0.2);
+            border-color: rgba(93, 63, 211, 0.4);
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .card-title {
+            font-family: 'Exo 2', sans-serif;
+            font-weight: 600;
+            font-size: 1.3rem;
+            color: var(--text-light);
+        }
+        
+        .card-icon {
+            font-size: 1.8rem;
+            color: var(--starlight-blue);
+            background: rgba(30, 144, 255, 0.1);
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .chart-container {
+            height: 250px;
+            position: relative;
+        }
+        
+        .map-container {
+            height: 300px;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-top: 1rem;
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        
+        .status-card {
+            background: rgba(30, 144, 255, 0.08);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .status-card:hover {
+            background: rgba(93, 63, 211, 0.15);
+            transform: scale(1.03);
+        }
+        
+        .status-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.2rem;
+            color: var(--comet-green);
+            margin: 0.8rem 0;
+        }
+        
+        .status-label {
+            color: var(--text-dim);
+            font-size: 0.95rem;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1.5rem;
+        }
+        
+        .data-table th {
+            background: rgba(93, 63, 211, 0.2);
+            padding: 1rem;
+            text-align: left;
+            font-family: 'Exo 2', sans-serif;
+            font-weight: 600;
+            color: var(--text-light);
+        }
+        
+        .data-table td {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(93, 63, 211, 0.1);
+            color: var(--text-dim);
+        }
+        
+        .data-table tr:hover td {
+            background: rgba(93, 63, 211, 0.1);
+            color: var(--text-light);
+        }
+        
+        .contact-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 2rem;
+        }
+        
+        .contact-card {
+            background: rgba(13, 20, 36, 0.6);
+            border-radius: 16px;
+            padding: 2rem;
+            border: 1px solid rgba(93, 63, 211, 0.2);
+        }
+        
+        .contact-title {
+            font-family: 'Exo 2', sans-serif;
+            font-weight: 600;
+            font-size: 1.4rem;
+            color: var(--text-light);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .contact-list {
+            list-style: none;
+            margin-top: 1.5rem;
+        }
+        
+        .contact-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 0.8rem 0;
+            border-bottom: 1px solid rgba(93, 63, 211, 0.1);
+        }
+        
+        .contact-icon {
+            font-size: 1.3rem;
+            color: var(--starlight-blue);
+            min-width: 30px;
+        }
+        
+        .contact-link {
+            color: var(--text-dim);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+        
+        .contact-link:hover {
+            color: var(--starlight-blue);
+        }
+        
+        .social-links {
+            display: flex;
+            gap: 15px;
+            margin-top: 2rem;
+        }
+        
+        .social-link {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: rgba(93, 63, 211, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: var(--text-dim);
+            transition: all 0.3s ease;
+        }
+        
+        .social-link:hover {
+            background: var(--nebula-purple);
+            color: white;
+            transform: translateY(-3px);
+        }
+        
+        .footer {
+            background: rgba(10, 14, 23, 0.9);
+            padding: 2rem 5%;
+            border-top: 1px solid rgba(93, 63, 211, 0.2);
+            margin-top: 3rem;
+            text-align: center;
+            font-family: 'Exo 2', sans-serif;
+        }
+        
+        .footer-text {
+            color: var(--text-dim);
+            font-size: 0.95rem;
+            line-height: 1.7;
+        }
+        
+        .org-section {
+            margin-bottom: 3rem;
+        }
+        
+        .org-title {
+            font-family: 'Exo 2', sans-serif;
+            font-weight: 700;
+            font-size: 1.8rem;
+            color: var(--starlight-blue);
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.8rem;
+            border-bottom: 1px solid rgba(93, 63, 211, 0.3);
+        }
+        
+        .org-content {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: var(--text-dim);
+            margin-bottom: 1.5rem;
+        }
+        
+        .mission-statement {
+            background: rgba(93, 63, 211, 0.1);
+            border-left: 4px solid var(--nebula-purple);
+            padding: 1.5rem;
+            margin: 2rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .mission-text {
+            font-style: italic;
+            color: var(--text-light);
+            line-height: 1.8;
+        }
+        
+        .spirituality-section {
+            background: rgba(255, 215, 0, 0.05);
+            border: 1px solid rgba(255, 215, 0, 0.1);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-top: 2rem;
+        }
+        
+        .spirituality-title {
+            color: var(--accent-gold);
+            font-family: 'Exo 2', sans-serif;
+            font-weight: 700;
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .spirituality-icon {
+            font-size: 1.8rem;
+        }
+        
+        .spirituality-content {
+            line-height: 1.8;
+            color: var(--text-dim);
+        }
+        
+        @media (max-width: 992px) {
+            .sidebar {
+                width: 220px;
+            }
+            
+            .main-content {
+                margin-left: 220px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                position: relative;
+                height: auto;
+                padding: 1.5rem;
+            }
+            
+            .main-content {
+                margin-left: 0;
+                padding: 1.5rem;
+            }
+            
+            .header {
+                padding: 1rem;
+            }
+            
+            .nav-links {
+                display: none;
+            }
+            
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Star background -->
+    <div class="stars" id="stars"></div>
+    
+    <!-- Header -->
+    <header class="header">
+        <a href="#" class="logo" data-page="home">
+            <i class="fas fa-rocket logo-icon"></i>
+            COSMIC UI/UX
+        </a>
+        <div class="nav-links">
+            <a href="#" class="nav-link active" data-page="home">Dashboard</a>
+            <a href="#" class="nav-link" data-page="resources">Resources</a>
+            <a href="#" class="nav-link" data-page="about">About</a>
+            <a href="#" class="nav-link" data-page="contact">Contact</a>
+        </div>
+    </header>
+    
+    <div class="page-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-section">
+                <h3 class="sidebar-title"><i class="fas fa-satellite sidebar-icon"></i> Mission Data</h3>
+                <div class="page-links">
+                    <a href="#" class="page-link active" data-page="home">
+                        <i class="fas fa-home page-link-icon"></i>
+                        Dashboard
+                    </a>
+                    <a href="#" class="page-link" data-page="satellite">
+                        <i class="fas fa-satellite page-link-icon"></i>
+                        Satellite Telemetry
+                    </a>
+                    <a href="#" class="page-link" data-page="iss">
+                        <i class="fas fa-space-shuttle page-link-icon"></i>
+                        ISS Location
+                    </a>
+                    <a href="#" class="page-link" data-page="mars">
+                        <i class="fas fa-planet-mars page-link-icon"></i>
+                        Mars Weather
+                    </a>
+                    <a href="#" class="page-link" data-page="asteroid">
+                        <i class="fas fa-meteor page-link-icon"></i>
+                        Asteroid Tracking
+                    </a>
+                </div>
+            </div>
+            
+            <div class="sidebar-section">
+                <h3 class="sidebar-title"><i class="fas fa-building sidebar-icon"></i> Organization</h3>
+                <div class="page-links">
+                    <a href="#" class="page-link" data-page="about">
+                        <i class="fas fa-info-circle page-link-icon"></i>
+                        About Us
+                    </a>
+                    <a href="#" class="page-link" data-page="vision">
+                        <i class="fas fa-bullseye page-link-icon"></i>
+                        Vision & Mission
+                    </a>
+                    <a href="#" class="page-link" data-page="whyus">
+                        <i class="fas fa-star page-link-icon"></i>
+                        Why Choose Us?
+                    </a>
+                    <a href="#" class="page-link" data-page="campuses">
+                        <i class="fas fa-map-marked-alt page-link-icon"></i>
+                        Global Campuses
+                    </a>
+                </div>
+            </div>
+            
+            <div class="sidebar-section">
+                <h3 class="sidebar-title"><i class="fas fa-book sidebar-icon"></i> Resources</h3>
+                <div class="page-links">
+                    <a href="#" class="page-link" data-page="resources">
+                        <i class="fas fa-book-open page-link-icon"></i>
+                        E-Resources
+                    </a>
+                    <a href="#" class="page-link" data-page="library">
+                        <i class="fas fa-book-reader page-link-icon"></i>
+                        E-Library
+                    </a>
+                    <a href="#" class="page-link" data-page="research">
+                        <i class="fas fa-flask page-link-icon"></i>
+                        Research Papers
+                    </a>
+                    <a href="#" class="page-link" data-page="contact">
+                        <i class="fas fa-envelope page-link-icon"></i>
+                        Contact Us
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Home/Dashboard Page -->
+            <div class="page active" id="home">
+                <h1 class="page-title"><i class="fas fa-home page-icon"></i> Mission Control Dashboard</h1>
+                <p class="page-subtitle">Real-time monitoring of space missions, satellite telemetry, ISS location, Mars weather, and near-Earth objects. All critical space data in one unified interface.</p>
+                
+                <div class="dashboard-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Satellite Health Status</h3>
+                            <div class="card-icon">
+                                <i class="fas fa-heartbeat"></i>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="healthChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">ISS Current Position</h3>
+                            <div class="card-icon">
+                                <i class="fas fa-globe-americas"></i>
+                            </div>
+                        </div>
+                        <div id="issMap" class="map-container"></div>
+                        <div class="status-grid">
+                            <div class="status-card">
+                                <div class="status-label">Altitude</div>
+                                <div class="status-value">408 km</div>
+                            </div>
+                            <div class="status-card">
+                                <div class="status-label">Velocity</div>
+                                <div class="status-value">7.66 km/s</div>
+                            </div>
+                            <div class="status-card">
+                                <div class="status-label">Latitude</div>
+                                <div class="status-value">12.34° N</div>
+                            </div>
+                            <div class="status-card">
+                                <div class="status-label">Longitude</div>
+                                <div class="status-value">98.76° E</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Mars Weather</h3>
+                            <div class="card-icon">
+                                <i class="fas fa-temperature-high"></i>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="marsChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Asteroid Tracking</h3>
+                            <div class="card-icon">
+                                <i class="fas fa-meteor"></i>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="asteroidChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Satellite Telemetry Page -->
+            <div class="page" id="satellite">
+                <h1 class="page-title"><i class="fas fa-satellite page-icon"></i> Satellite Telemetry</h1>
+                <p class="page-subtitle">Real-time monitoring of satellite systems, communication status, and orbital parameters for our global satellite network.</p>
+                
+                <div class="dashboard-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Orbital Parameters</h3>
+                            <div class="card-icon">
+                                <i class="fas fa-orbit"></i>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="orbitChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Power Systems</h3>
+                            <div class="card-icon">
+                                <i class="fas fa-solar-panel"></i>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="powerChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Communication Status</h3>
+                            <div class="card-icon">
+                                <i class="fas fa-signal"></i>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="commChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Satellite Fleet Status</h3>
+                            <div class="card-icon">
+                                <i class="fas fa-satellite-dish"></i>
+                            </div>
+                        </div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Satellite</th>
+                                    <th>Status</th>
+                                    <th>Altitude</th>
+                                    <th>Last Contact</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Galaxy-1</td>
+                                    <td><span style="color: var(--comet-green);">Operational</span></td>
+                                    <td>1,200 km</td>
+                                    <td>2 min ago</td>
+                                </tr>
+                                <tr>
+                                    <td>Orbiter-7</td>
+                                    <td><span style="color: var(--comet-green);">Operational</span></td>
+                                    <td>780 km</td>
+                                    <td>5 min ago</td>
+                                </tr>
+                                <tr>
+                                    <td>Stellar-3</td>
+                                    <td><span style="color: var(--planet-orange);">Maintenance</span></td>
+                                    <td>1,050 km</td>
+                                    <td>1 hour ago</td>
+                                </tr>
+                                <tr>
+                                    <td>Cosmos-9</td>
+                                    <td><span style="color: var(--comet-green);">Operational</span></td>
+                                    <td>1,500 km</td>
+                                    <td>8 min ago</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ISS Location Page -->
+            <div class="page" id="iss">
+                <h1 class="page-title"><i class="fas fa-space-shuttle page-icon"></i> International Space Station</h1>
+                <p class="page-subtitle">Track the International Space Station in real-time as it orbits Earth every 90 minutes at 28,000 km/h.</p>
+                
+                <div class="dashboard-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Current Position</h3>
+                            <div class="card-icon">
+                                <i class="fas fa-map-marked-alt"></i>
+                            </div>
+                        </div>
+                        <div id="issTrackerMap" class="map-container"></div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Orbital Information</h3>
+                            <div class="card-icon">
+                                <i class="fas fa-chart-line"></i>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="issOrbitChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Current Crew</h3>
+                            <div class="card-icon">
+                                <i class="fas fa-users"></i>
+                            </div>
+                        </div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Position</th>
+                                    <th>Nationality</th>
+                                    <th>Days in Space</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Samantha Cristoforetti</td>
+                                    <td>Commander</td>
+                                    <td>Italy</td>
+                                    <td>202</td>
+                                </tr>
+                                <tr>
+                                    <td>Sergey Prokopyev</td>
+                                    <td>Flight Engineer</td>
+                                    <td>Russia</td>
+                                    <td>185</td>
+                                </tr>
+                                <tr>
+                                    <td>Dmitry Petelin</td>
+                                    <td>Flight Engineer</td>
+                                    <td>Russia</td>
+                                    <td>185</td>
+                                </tr>
+                                <tr>
+                                    <td>Frank Rubio</td>
+                                    <td>Flight Engineer</td>
+                                    <td>USA</td>
+                                    <td>185</td>
+                                </tr>
+                                <tr>
+                                    <td>Nicole Mann</td>
+                                    <td>Flight Engineer</td>
+                                    <td>USA</td>
+                                    <td>142</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Next Passes Over Your Location</h3>
+                            <div class="card-icon">
+                                <i class="fas fa-calendar-alt"></i>
+                            </div>
+                        </div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Time</th>
+                                    <th>Duration</th>
+                                    <th>Magnitude</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Tomorrow</td>
+                                    <td>05:23 AM</td>
+                                    <td>6 min</td>
+                                    <td>-3.7</td>
+                                </tr>
+                                <tr>
+                                    <td>Tomorrow</td>
+                                    <td>06:58 PM</td>
+                                    <td>4 min</td>
+                                    <td>-1.2</td>
+                                </tr>
+                                <tr>
+                                    <td>Day after tomorrow</td>
+                                    <td>04:36 AM</td>
+                                    <td>7 min</td>
+                                    <td>-3.9</td>
+                                </tr>
+                                <tr>
+                                    <td>Day after tomorrow</td>
+                                    <td>06:11 PM</td>
+                                    <td>5 min</td>
+                                    <td>-2.1</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- About Organization Page -->
+            <div class="page" id="about">
+                <h1 class="page-title"><i class="fas fa-info-circle page-icon"></i> About Our Organization</h1>
+                <p class="page-subtitle">Pioneering the future of space exploration, research, and education since 2008.</p>
+                
+                <div class="org-section">
+                    <h2 class="org-title">Who We Are</h2>
+                    <p class="org-content">The Cosmic Exploration Initiative (CEI) is an international non-profit organization dedicated to advancing humanity's understanding and presence in space. Founded in 2008 by a team of visionary scientists, engineers, and educators, CEI has grown to become a leading force in space research, technology development, and public outreach.</p>
+                    <p class="org-content">With our headquarters in Geneva, Switzerland, and research campuses across four continents, we bring together the brightest minds from around the globe to tackle the most challenging questions about our universe.</p>
+                    
+                    <div class="mission-statement">
+                        <p class="mission-text">"To inspire, explore, and understand the cosmos, making space accessible for all humanity while fostering a deeper connection between Earth and the universe we inhabit."</p>
+                    </div>
+                </div>
+                
+                <div class="org-section">
+                    <h2 class="org-title">Our Emblem</h2>
+                    <p class="org-content">Our emblem represents humanity's journey into space. The central orbit symbolizes our connection to Earth while reaching outward. The seven stars represent our founding principles: Exploration, Innovation, Education, Sustainability, Collaboration, Ethics, and Wonder.</p>
+                </div>
+                
+                <div class="org-section">
+                    <h2 class="org-title">Global Presence</h2>
+                    <p class="org-content">Our international campuses serve as centers of excellence for space research and education:</p>
+                    <ul class="contact-list">
+                        <li class="contact-item">
+                            <i class="fas fa-map-marker-alt contact-icon"></i>
+                            <span>Geneva, Switzerland (Headquarters)</span>
+                        </li>
+                        <li class="contact-item">
+                            <i class="fas fa-map-marker-alt contact-icon"></i>
+                            <span>Pasadena, California, USA</span>
+                        </li>
+                        <li class="contact-item">
+                            <i class="fas fa-map-marker-alt contact-icon"></i>
+                            <span>Bangalore, India</span>
+                        </li>
+                        <li class="contact-item">
+                            <i class="fas fa-map-marker-alt contact-icon"></i>
+                            <span>Tokyo, Japan</span>
+                        </li>
+                        <li class="contact-item">
+                            <i class="fas fa-map-marker-alt contact-icon"></i>
+                            <span>Sydney, Australia</span>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="org-section">
+                    <h2 class="org-title">Partnerships</h2>
+                    <p class="org-content">We collaborate with leading space agencies, research institutions, and universities worldwide:</p>
+                    <ul class="contact-list">
+                        <li class="contact-item">
+                            <i class="fas fa-handshake contact-icon"></i>
+                            <span>Memorandum of Understanding with NASA</span>
+                        </li>
+                        <li class="contact-item">
+                            <i class="fas fa-handshake contact-icon"></i>
+                            <span>Partnership with European Space Agency</span>
+                        </li>
+                        <li class="contact-item">
+                            <i class="fas fa-handshake contact-icon"></i>
+                            <span>Research collaboration with MIT Space Lab</span>
+                        </li>
+                        <li class="contact-item">
+                            <i class="fas fa-handshake contact-icon"></i>
+                            <span>Academic affiliation with International Space University</span>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="spirituality-section">
+                    <h3 class="spirituality-title"><i class="fas fa-meditation spirituality-icon"></i> Cosmic Perspective</h3>
+                    <p class="spirituality-content">At CEI, we recognize that space exploration transcends scientific achievement. Our work fosters a cosmic perspective - the understanding that we are part of something vastly greater than ourselves. This perspective cultivates humility, interconnectedness, and a profound sense of stewardship for our planet and species.</p>
+                    <p class="spirituality-content">We encourage contemplation of our place in the universe, recognizing that the journey outward is simultaneously a journey inward. Our programs incorporate philosophical discussions, mindfulness practices, and ethical frameworks to ensure our exploration of space remains grounded in wisdom and reverence for the cosmos.</p>
+                </div>
+            </div>
+            
+            <!-- Contact Page -->
+            <div class="page" id="contact">
+                <h1 class="page-title"><i class="fas fa-envelope page-icon"></i> Contact Us</h1>
+                <p class="page-subtitle">Reach out to our team for inquiries, collaborations, or information about our programs and research.</p>
+                
+                <div class="contact-grid">
+                    <div class="contact-card">
+                        <h3 class="contact-title"><i class="fas fa-headset"></i> General Inquiries</h3>
+                        <ul class="contact-list">
+                            <li class="contact-item">
+                                <i class="fas fa-envelope contact-icon"></i>
+                                <a href="mailto:shreyasmishra001@gmail.com" class="contact-link">shreyasmishra001@gmail.com</a>
+                            </li>
+                            <li class="contact-item">
+                                <i class="fas fa-phone contact-icon"></i>
+                                <a href="tel:+11234567890" class="contact-link">+1 (123) 456-7890</a>
+                            </li>
+                            <li class="contact-item">
+                                <i class="fas fa-map-marker-alt contact-icon"></i>
+                                <span>Cosmic Exploration Initiative<br>Space Avenue 42<br>Geneva, Switzerland</span>
+                            </li>
+                        </ul>
+                        
+                        <h3 class="contact-title" style="margin-top: 2rem;"><i class="fas fa-users"></i> Connect With Us</h3>
+                        <div class="social-links">
+                            <a href="https://github.com/harigovinda-clsi" target="_blank" class="social-link">
+                                <i class="fab fa-github"></i>
+                            </a>
+                            <a href="https://in.linkedin.com/in/theshreyasmishra" target="_blank" class="social-link">
+                                <i class="fab fa-linkedin-in"></i>
+                            </a>
+                            <a href="#" class="social-link">
+                                <i class="fab fa-twitter"></i>
+                            </a>
+                            <a href="#" class="social-link">
+                                <i class="fab fa-youtube"></i>
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div class="contact-card">
+                        <h3 class="contact-title"><i class="fas fa-building"></i> Campus Contacts</h3>
+                        <ul class="contact-list">
+                            <li class="contact-item">
+                                <i class="fas fa-university contact-icon"></i>
+                                <span><strong>Geneva HQ:</strong> contact@cosmicexploration.org</span>
+                            </li>
+                            <li class="contact-item">
+                                <i class="fas fa-university contact-icon"></i>
+                                <span><strong>California Campus:</strong> california@cosmicexploration.org</span>
+                            </li>
+                            <li class="contact-item">
+                                <i class="fas fa-university contact-icon"></i>
+                                <span><strong>Bangalore Campus:</strong> bangalore@cosmicexploration.org</span>
+                            </li>
+                            <li class="contact-item">
+                                <i class="fas fa-university contact-icon"></i>
+                                <span><strong>Tokyo Campus:</strong> tokyo@cosmicexploration.org</span>
+                            </li>
+                        </ul>
+                        
+                        <h3 class="contact-title" style="margin-top: 2rem;"><i class="fas fa-hands-helping"></i> Partnerships</h3>
+                        <ul class="contact-list">
+                            <li class="contact-item">
+                                <i class="fas fa-handshake contact-icon"></i>
+                                <span><strong>Research Collaborations:</strong> research@cosmicexploration.org</span>
+                            </li>
+                            <li class="contact-item">
+                                <i class="fas fa-handshake contact-icon"></i>
+                                <span><strong>Corporate Partnerships:</strong> partnerships@cosmicexploration.org</span>
+                            </li>
+                            <li class="contact-item">
+                                <i class="fas fa-handshake contact-icon"></i>
+                                <span><strong>Educational Programs:</strong> education@cosmicexploration.org</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <footer class="footer">
+        <p class="footer-text">© 2023 Cosmic Exploration Initiative. All rights reserved. | Designed with <i class="fas fa-heart" style="color: var(--nebula-purple);"></i> for the future of space exploration</p>
+        <p class="footer-text">COSMIC UI/UX Dashboard v2.1 | Data updates every 60 seconds</p>
+    </footer>
+
+    <script>
+        // Create star background
+        function createStars() {
+            const starsContainer = document.getElementById('stars');
+            const starsCount = 200;
+            
+            for (let i = 0; i < starsCount; i++) {
+                const star = document.createElement('div');
+                star.classList.add('star');
+                
+                // Random position
+                const x = Math.random() * 100;
+                const y = Math.random() * 100;
+                
+                // Random size (0.5px to 2px)
+                const size = Math.random() * 1.5 + 0.5;
+                
+                // Random twinkle duration (3s to 8s)
+                const duration = Math.random() * 5 + 3;
+                
+                // Random delay (0s to 5s)
+                const delay = Math.random() * 5;
+                
+                star.style.left = `${x}%`;
+                star.style.top = `${y}%`;
+                star.style.width = `${size}px`;
+                star.style.height = `${size}px`;
+                star.style.setProperty('--duration', `${duration}s`);
+                star.style.setProperty('--delay', `${delay}s`);
+                
+                starsContainer.appendChild(star);
+            }
+        }
+        
+        // Initialize charts
+        function initCharts() {
+            // Health Status Chart
+            const healthCtx = document.getElementById('healthChart').getContext('2d');
+            new Chart(healthCtx, {
+                type: 'radar',
+                data: {
+                    labels: ['Power', 'Comms', 'Thermal', 'Attitude', 'Payload', 'Propulsion'],
+                    datasets: [{
+                        label: 'System Health',
+                        data: [92, 88, 95, 85, 90, 82],
+                        backgroundColor: 'rgba(93, 63, 211, 0.2)',
+                        borderColor: 'rgba(93, 63, 211, 1)',
+                        borderWidth: 2,
+                        pointBackgroundColor: 'rgba(93, 63, 211, 1)',
+                        pointBorderColor: '#fff',
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    scales: {
+                        r: {
+                            angleLines: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            pointLabels: {
+                                color: '#e6f1ff',
+                                font: {
+                                    size: 10
+                                }
+                            },
+                            suggestedMin: 50,
+                            suggestedMax: 100
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+            
+            // Mars Weather Chart
+            const marsCtx = document.getElementById('marsChart').getContext('2d');
+            new Chart(marsCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Sol 1', 'Sol 2', 'Sol 3', 'Sol 4', 'Sol 5', 'Sol 6', 'Sol 7'],
+                    datasets: [
+                        {
+                            label: 'High Temp (°C)',
+                            data: [-15, -12, -18, -10, -8, -13, -11],
+                            borderColor: 'rgba(207, 78, 201, 1)',
+                            backgroundColor: 'rgba(207, 78, 201, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: false
+                        },
+                        {
+                            label: 'Low Temp (°C)',
+                            data: [-75, -80, -82, -78, -73, -76, -79],
+                            borderColor: 'rgba(30, 144, 255, 1)',
+                            backgroundColor: 'rgba(30, 144, 255, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#e6f1ff'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#e6f1ff'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#e6f1ff'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Asteroid Chart
+            const asteroidCtx = document.getElementById('asteroidChart').getContext('2d');
+            new Chart(asteroidCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['2023 TL', '2023 TK', '2023 TJ', '2023 TH', '2023 TG'],
+                    datasets: [{
+                        label: 'Distance (LD)',
+                        data: [0.8, 3.2, 5.6, 8.3, 12.7],
+                        backgroundColor: [
+                            'rgba(255, 127, 80, 0.7)',
+                            'rgba(255, 127, 80, 0.7)',
+                            'rgba(255, 215, 0, 0.7)',
+                            'rgba(0, 250, 154, 0.7)',
+                            'rgba(0, 250, 154, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 127, 80, 1)',
+                            'rgba(255, 127, 80, 1)',
+                            'rgba(255, 215, 0, 1)',
+                            'rgba(0, 250, 154, 1)',
+                            'rgba(0, 250, 154, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#e6f1ff'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#e6f1ff'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Initialize ISS map
+        function initISSMap() {
+            const issMap = L.map('issMap').setView([0, 0], 2);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 8,
+                minZoom: 2
+            }).addTo(issMap);
+            
+            // ISS marker with custom icon
+            const issIcon = L.divIcon({
+                className: 'iss-icon',
+                html: '<i class="fas fa-space-station" style="color: #ffd700; font-size: 24px;"></i>',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            });
+            
+            const marker = L.marker([0, 0], {icon: issIcon}).addTo(issMap);
+            
+            // Update position periodically (simulated)
+            function updatePosition() {
+                const lat = 20 + Math.random() * 30;
+                const lon = -100 + Math.random() * 80;
+                marker.setLatLng([lat, lon]);
+                issMap.setView([lat, lon], 3);
+            }
+            
+            updatePosition();
+            setInterval(updatePosition, 5000);
+        }
+        
+        // Page navigation
+        function setupNavigation() {
+            const pageLinks = document.querySelectorAll('.page-link');
+            const navLinks = document.querySelectorAll('.nav-link');
+            
+            function showPage(pageId) {
+                // Hide all pages
+                document.querySelectorAll('.page').forEach(page => {
+                    page.classList.remove('active');
+                });
+                
+                // Show selected page
+                document.getElementById(pageId).classList.add('active');
+                
+                // Update active link in sidebar
+                pageLinks.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('data-page') === pageId) {
+                        link.classList.add('active');
+                    }
+                });
+                
+                // Update active nav link
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('data-page') === pageId) {
+                        link.classList.add('active');
+                    }
+                });
+            }
+            
+            // Add event listeners to page links
+            pageLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const pageId = link.getAttribute('data-page');
+                    showPage(pageId);
+                });
+            });
+            
+            // Add event listeners to nav links
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const pageId = link.getAttribute('data-page');
+                    showPage(pageId);
+                });
+            });
+            
+            // Show home page by default
+            showPage('home');
+        }
+        
+        // Initialize everything when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            createStars();
+            initCharts();
+            initISSMap();
+            setupNavigation();
+        });
+    </script>
+</body>
+</html>
